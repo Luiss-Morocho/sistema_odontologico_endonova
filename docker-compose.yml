@@ -1,0 +1,80 @@
+version: '3.8'
+
+services:
+  # --- BASE DE DATOS ---
+  db:
+    image: postgres:15
+    container_name: endonova_db
+    environment:
+      - POSTGRES_USER=postgres
+      - POSTGRES_PASSWORD=postgres
+      - POSTGRES_DB=odontologia_db
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+
+  # --- MICROSERVICIOS ---
+  servicio_pacientes:
+    build: ./servicio_pacientes
+    container_name: api_pacientes
+    restart: always
+    command: uvicorn main:app --host 0.0.0.0 --port 8000
+    ports:
+      - "8000:8000"
+    environment:
+      - DATABASE_URL=postgresql://postgres:postgres@db/odontologia_db
+    depends_on:
+      - db
+
+  servicio_fichas:
+    build: ./servicio_fichas
+    container_name: api_fichas
+    restart: always
+    command: uvicorn main:app --host 0.0.0.0 --port 8001
+    ports:
+      - "8001:8001"
+    environment:
+      - DATABASE_URL=postgresql://postgres:postgres@db/odontologia_db
+    depends_on:
+      - db
+
+  servicio_odontograma:
+    build: ./servicio_odontograma
+    container_name: api_odontograma
+    restart: always
+    command: uvicorn main:app --host 0.0.0.0 --port 8002
+    ports:
+      - "8002:8002"
+    environment:
+      - DATABASE_URL=postgresql://postgres:postgres@db/odontologia_db
+    depends_on:
+      - db
+
+  servicio_seguridad:
+    build: ./servicio_seguridad
+    container_name: api_seguridad
+    restart: always
+    command: uvicorn main:app --host 0.0.0.0 --port 8003
+    ports:
+      - "8003:8003"
+    environment:
+      - DATABASE_URL=postgresql://postgres:postgres@db/odontologia_db
+    depends_on:
+      - db
+
+  # --- FRONTEND ---
+  frontend:
+    build: ./frontend
+    container_name: cliente_react
+    ports:
+      - "5173:5173"
+    depends_on:
+      - servicio_pacientes
+      - servicio_seguridad
+    # Esto permite que Vite funcione bien en Docker
+    environment:
+      - CHOKIDAR_USEPOLLING=true
+
+volumes:
+  postgres_data:

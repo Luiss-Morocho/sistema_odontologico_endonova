@@ -6,8 +6,8 @@ import Pacientes from './components/ListaPacientes';
 import Fichas from './components/Fichas';
 import Odontograma from './components/Odontograma';
 import Login from './components/Login';
-import GestionUsuarios from './components/gestionUsuarios';
-import Dashboard from './components/dashboard';
+import GestionUsuarios from './components/GestionUsuarios';
+import Dashboard from './components/Dashboard';
 
 function App() {
   const [usuario, setUsuario] = useState(null);

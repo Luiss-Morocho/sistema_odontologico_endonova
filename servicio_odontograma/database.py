@@ -1,13 +1,17 @@
+import os
 from sqlalchemy import create_engine
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import sessionmaker
 
 # --- CONFIGURACIÓN DE CONEXIÓN A POSTGRESQL ---
 # Estructura: postgresql://usuario:contraseña@servidor:puerto/nombre_base_datos
-SQLALCHEMY_DATABASE_URL = "postgresql://postgres:root@localhost:5432/odontologia_db"
+# SQLALCHEMY_DATABASE_URL = "postgresql://postgres:root@localhost:5432/odontologia_db"
+
+# Url para utlilizar Docker
+DB_URL = os.getenv("DATABASE_URL", "postgresql://postgres:postgres@localhost/odontologia_db")
 
 engine = create_engine(
-    SQLALCHEMY_DATABASE_URL
+    DB_URL
 )
 
 # Creamos la sesión para interactuar con la base de datos
