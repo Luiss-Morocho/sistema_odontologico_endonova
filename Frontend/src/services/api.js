@@ -31,6 +31,11 @@ export const createFicha = async(ficha) => {
     return response.data;
 };
 
+export const deleteFicha = async(id) => {
+    const response = await axios.delete(`${API_FICHAS}/fichas/${id}`);
+    return response.data;
+};
+
 // --- ODONTOGRAMA (Puerto 8002) ---
 export const getOdontograma = async(pacienteId) => {
     const response = await axios.get(`${API_ODONTOGRAMA}/odontograma/${pacienteId}`);

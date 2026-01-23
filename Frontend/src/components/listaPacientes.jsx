@@ -1,194 +1,221 @@
-import { useEffect, useState } from 'react';
+import React, { useState, useEffect } from 'react';
+import { Container, Table, Button, Modal, Form, Alert, Dropdown, ButtonGroup, InputGroup } from 'react-bootstrap';
+import axios from 'axios';
 import { useNavigate } from 'react-router-dom';
-import { Table, Button, Container, Form, InputGroup, Card, Badge } from 'react-bootstrap'; 
-import { getPacientes, createPaciente } from '../services/api';
 
-function ListaPacientes() {
-  const [pacientes, setPacientes] = useState([]);
-  const [busqueda, setBusqueda] = useState(""); 
-  const navigate = useNavigate();
-
-  // Estado actualizado con CEDULA
-  const [nuevoPaciente, setNuevoPaciente] = useState({
-    cedula: '', 
-    nombres: '', 
-    edad: '', 
-    domicilio: '', 
-    telefono: '', 
-    email: ''
-  });
-
-  // 1. DEFINIMOS LA FUNCIÓN PRIMERO
-  const cargarPacientes = async () => {
-    try {
-      const data = await getPacientes();
-      setPacientes(data);
-    } catch (error) {
-      console.error("Error cargando pacientes:", error);
-    }
-  };
-
-  // 2. LUEGO USAMOS EL EFECTO
-  useEffect(() => {
-    cargarPacientes();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
-
-  const handleGuardar = async () => {
-    // Validaciones básicas
-    if (!nuevoPaciente.cedula || !nuevoPaciente.nombres) {
-        alert("⚠️ La Cédula y el Nombre son obligatorios");
-        return;
-    }
+const ListaPacientes = () => {
+    const navigate = useNavigate();
+    const [pacientes, setPacientes] = useState([]);
+    const [busqueda, setBusqueda] = useState(""); // <--- Estado para el buscador
+    const [mostrarModal, setMostrarModal] = useState(false);
+    const [modoEdicion, setModoEdicion] = useState(false);
     
-    try {
-        await createPaciente(nuevoPaciente);
-        alert("✅ Paciente registrado con éxito");
-        // Limpiar formulario
-        setNuevoPaciente({ cedula: '', nombres: '', edad: '', domicilio: '', telefono: '', email: '' });
-        cargarPacientes(); 
-    } catch (error) {
-        alert("❌ Error: Es posible que la cédula ya esté registrada.");
-        console.error(error);
-    }
-  };
+    const [pacienteActual, setPacienteActual] = useState({
+        id: '', cedula: '', nombres: '', edad: '', domicilio: '', telefono: '', email: ''
+    });
+    
+    const [mensaje, setMensaje] = useState(null);
+    const API_URL = 'http://localhost:8000/pacientes'; 
 
-  // LÓGICA DE FILTRADO (Por Nombre O por Cédula)
-  const pacientesFiltrados = pacientes.filter(p => 
-    p.nombres.toLowerCase().includes(busqueda.toLowerCase()) || 
-    p.cedula.includes(busqueda)
-  );
+    // --- CARGAR PACIENTES ---
+    const cargarPacientes = async () => {
+        try {
+            const respuesta = await axios.get(`${API_URL}/`);
+            setPacientes(respuesta.data);
+        } catch (error) {
+            console.error("Error:", error);
+            setMensaje({ tipo: 'danger', texto: 'No se pudo conectar con el servidor.' });
+        }
+    };
 
-  return (
-    <Container className="mt-4">
-      <div className="d-flex justify-content-between align-items-center mb-4 border-bottom pb-2">
-        <h2 className="text-primary m-0">Gestión de Pacientes</h2>
-        <Badge bg="secondary">Total: {pacientes.length}</Badge>
-      </div>
+    useEffect(() => {
+        cargarPacientes();
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, []);
 
-      {/* 1. FORMULARIO DE REGISTRO */}
-      <Card className="mb-4 shadow-sm bg-white border-0">
-        <Card.Header className="bg-light fw-bold">👤 Nuevo Paciente</Card.Header>
-        <Card.Body>
-            <div className="d-flex gap-2 flex-wrap align-items-end">
-                <Form.Group style={{flex: 1, minWidth: '150px'}}>
-                    <Form.Label className="small text-muted mb-1">Cédula *</Form.Label>
-                    <Form.Control 
-                        placeholder="Ej: 172..." 
-                        value={nuevoPaciente.cedula} 
-                        onChange={e => setNuevoPaciente({...nuevoPaciente, cedula: e.target.value})}
+    // --- LÓGICA DE FILTRADO (BUSCADOR) ---
+    const pacientesFiltrados = pacientes.filter((paciente) => {
+        const termino = busqueda.toLowerCase();
+        // Busca coincidencias en Nombre O en Cédula
+        return (
+            paciente.nombres.toLowerCase().includes(termino) || 
+            paciente.cedula.includes(termino)
+        );
+    });
+
+    // --- MANEJO DE FORMULARIO ---
+    const handleChange = (e) => {
+        const value = e.target.name === 'edad' ? parseInt(e.target.value) : e.target.value;
+        setPacienteActual({ ...pacienteActual, [e.target.name]: value });
+    };
+
+    const abrirCrear = () => {
+        setModoEdicion(false);
+        setPacienteActual({ cedula: '', nombres: '', edad: '', domicilio: '', telefono: '', email: '' });
+        setMostrarModal(true);
+    };
+
+    const abrirEditar = (paciente) => {
+        setModoEdicion(true);
+        setPacienteActual(paciente);
+        setMostrarModal(true);
+    };
+
+    // --- GUARDAR / ACTUALIZAR ---
+    const guardarPaciente = async () => {
+        try {
+            if (modoEdicion) {
+                await axios.put(`${API_URL}/${pacienteActual.id}`, pacienteActual);
+                setMensaje({ tipo: 'success', texto: 'Paciente actualizado correctamente' });
+            } else {
+                await axios.post(`${API_URL}/`, pacienteActual);
+                setMensaje({ tipo: 'success', texto: 'Paciente creado correctamente' });
+            }
+            setMostrarModal(false);
+            cargarPacientes();
+        } catch (error) {
+            console.error("Error:", error);
+            const errorMsg = error.response?.data?.detail || 'Error al guardar los datos';
+            setMensaje({ tipo: 'danger', texto: errorMsg });
+        }
+    };
+
+    // --- ELIMINAR ---
+    const eliminarPaciente = async (id) => {
+        if (window.confirm('¿Seguro que quieres eliminar a este paciente?')) {
+            try {
+                await axios.delete(`${API_URL}/${id}`);
+                setMensaje({ tipo: 'success', texto: 'Paciente eliminado' });
+                cargarPacientes();
+            } catch (error) {
+                console.error("Error:", error);
+                setMensaje({ tipo: 'danger', texto: 'No se pudo eliminar' });
+            }
+        }
+    };
+
+    return (
+        <Container className="mt-5">
+            <h2 className="mb-4 text-center">Gestión de Pacientes</h2>
+            
+            {mensaje && <Alert variant={mensaje.tipo} onClose={() => setMensaje(null)} dismissible>{mensaje.texto}</Alert>}
+
+            {/* BARRA SUPERIOR: Buscador + Botón Nuevo */}
+            <div className="d-flex justify-content-between align-items-center mb-3 gap-3">
+                <Button variant="primary" onClick={abrirCrear} style={{ minWidth: '160px' }}>
+                    + Nuevo Paciente
+                </Button>
+
+                <InputGroup style={{ maxWidth: '400px' }}>
+                    <InputGroup.Text id="icono-busqueda">🔍</InputGroup.Text>
+                    <Form.Control
+                        placeholder="Buscar por nombre o cédula..."
+                        value={busqueda}
+                        onChange={(e) => setBusqueda(e.target.value)}
+                        aria-label="Buscar"
+                        aria-describedby="icono-busqueda"
                     />
-                </Form.Group>
-
-                <Form.Group style={{flex: 2, minWidth: '200px'}}>
-                    <Form.Label className="small text-muted mb-1">Nombres Completos *</Form.Label>
-                    <Form.Control 
-                        placeholder="Ej: Juan Perez" 
-                        value={nuevoPaciente.nombres} 
-                        onChange={e => setNuevoPaciente({...nuevoPaciente, nombres: e.target.value})}
-                    />
-                </Form.Group>
-
-                <Form.Group style={{flex: 0.5, minWidth: '80px'}}>
-                    <Form.Label className="small text-muted mb-1">Edad</Form.Label>
-                    <Form.Control 
-                        type="number"
-                        value={nuevoPaciente.edad} 
-                        onChange={e => setNuevoPaciente({...nuevoPaciente, edad: e.target.value})}
-                    />
-                </Form.Group>
-
-                <Form.Group style={{flex: 1, minWidth: '150px'}}>
-                    <Form.Label className="small text-muted mb-1">Teléfono</Form.Label>
-                    <Form.Control 
-                        value={nuevoPaciente.telefono} 
-                        onChange={e => setNuevoPaciente({...nuevoPaciente, telefono: e.target.value})}
-                    />
-                </Form.Group>
-
-                <Form.Group style={{flex: 1, minWidth: '150px'}}>
-                    <Form.Label className="small text-muted mb-1">Email</Form.Label>
-                    <Form.Control 
-                        type="email"
-                        value={nuevoPaciente.email} 
-                        onChange={e => setNuevoPaciente({...nuevoPaciente, email: e.target.value})}
-                    />
-                </Form.Group>
-
-                <Button variant="primary" onClick={handleGuardar} style={{height: '38px'}}>Guardar</Button>
+                </InputGroup>
             </div>
-            <Form.Text className="text-muted">
-                * La cédula debe ser única para cada paciente.
-            </Form.Text>
-        </Card.Body>
-      </Card>
 
-      {/* 2. BUSCADOR */}
-      <InputGroup className="mb-3">
-        <InputGroup.Text id="basic-addon1" className="bg-white border-end-0">🔍</InputGroup.Text>
-        <Form.Control
-          placeholder="Buscar por Cédula o Nombre..."
-          value={busqueda}
-          onChange={(e) => setBusqueda(e.target.value)}
-          className="border-start-0"
-        />
-      </InputGroup>
-
-      {/* 3. TABLA DE RESULTADOS */}
-      <Card className="shadow-sm border-0">
-        <Table hover responsive className="mb-0 align-middle">
-            <thead className="bg-light text-secondary">
-            <tr>
-                <th>Cédula</th>
-                <th>Nombres</th>
-                <th>Edad</th>
-                <th>Contacto</th>
-                <th className="text-center">Expediente</th>
-            </tr>
-            </thead>
-            <tbody>
-            {pacientesFiltrados.length > 0 ? (
-                pacientesFiltrados.map((paciente) => (
-                    <tr key={paciente.id}>
-                    <td className="fw-bold text-dark">{paciente.cedula}</td>
-                    <td>{paciente.nombres}</td>
-                    <td>{paciente.edad} años</td>
-                    <td>
-                        <div className="small">{paciente.telefono}</div>
-                        <div className="small text-muted">{paciente.email}</div>
-                    </td>
-                    <td className="text-center">
-                        <Button 
-                            variant="primary" 
-                            size="sm" 
-                            className="me-2 shadow-sm"
-                            onClick={() => navigate(`/fichas/${paciente.id}`)}
-                        >
-                            📂 Ficha
-                        </Button>
-                        <Button 
-                            variant="info" 
-                            size="sm"
-                            className="text-white shadow-sm"
-                            onClick={() => navigate(`/odontograma/${paciente.id}`)}
-                        >
-                            🦷 Odontograma
-                        </Button>
-                    </td>
+            <Table striped bordered hover responsive className="align-middle shadow-sm">
+                <thead className="table-dark">
+                    <tr>
+                        <th>Cédula</th>
+                        <th>Nombres</th>
+                        <th>Edad</th>
+                        <th>Domicilio</th>
+                        <th>Teléfono</th>
+                        <th className="text-center">Acciones</th>
                     </tr>
-                ))
-            ) : (
-                <tr>
-                    <td colSpan="5" className="text-center text-muted py-5">
-                        {busqueda ? "No se encontraron coincidencias." : "Aún no hay pacientes registrados."}
-                    </td>
-                </tr>
-            )}
-            </tbody>
-        </Table>
-      </Card>
-    </Container>
-  );
-}
+                </thead>
+                <tbody>
+                    {pacientesFiltrados.length > 0 ? (
+                        pacientesFiltrados.map((paciente) => (
+                            <tr key={paciente.id}>
+                                <td>{paciente.cedula}</td>
+                                <td>{paciente.nombres}</td>
+                                <td>{paciente.edad}</td>
+                                <td>{paciente.domicilio}</td>
+                                <td>{paciente.telefono}</td>
+                                <td className="text-center">
+                                    <div className="d-flex justify-content-center gap-2">
+                                        
+                                        {/* MENÚ EXPEDIENTE */}
+                                        <Dropdown as={ButtonGroup}>
+                                            <Button variant="info" size="sm" className="text-white">Expediente</Button>
+                                            <Dropdown.Toggle split variant="info" size="sm" className="text-white" />
+                                            <Dropdown.Menu>
+                                                <Dropdown.Item onClick={() => navigate(`/fichas/${paciente.id}`)}>
+                                                    📄 Ficha Médica
+                                                </Dropdown.Item>
+                                                <Dropdown.Item onClick={() => navigate(`/odontograma/${paciente.id}`)}>
+                                                    🦷 Odontograma
+                                                </Dropdown.Item>
+                                            </Dropdown.Menu>
+                                        </Dropdown>
+
+                                        {/* BOTONES DIRECTOS */}
+                                        <Button variant="warning" size="sm" onClick={() => abrirEditar(paciente)} title="Editar">
+                                            ✏️
+                                        </Button>
+                                        <Button variant="danger" size="sm" onClick={() => eliminarPaciente(paciente.id)} title="Eliminar">
+                                            🗑️
+                                        </Button>
+                                    </div>
+                                </td>
+                            </tr>
+                        ))
+                    ) : (
+                        <tr>
+                            <td colSpan="6" className="text-center text-muted">
+                                {busqueda ? "No se encontraron resultados para tu búsqueda." : "No hay pacientes registrados."}
+                            </td>
+                        </tr>
+                    )}
+                </tbody>
+            </Table>
+
+            {/* Modal Formulario (Igual) */}
+            <Modal show={mostrarModal} onHide={() => setMostrarModal(false)}>
+                <Modal.Header closeButton>
+                    <Modal.Title>{modoEdicion ? 'Editar Paciente' : 'Nuevo Paciente'}</Modal.Title>
+                </Modal.Header>
+                <Modal.Body>
+                    <Form>
+                        <Form.Group className="mb-3">
+                            <Form.Label>Cédula</Form.Label>
+                            <Form.Control type="text" name="cedula" value={pacienteActual.cedula} onChange={handleChange} disabled={modoEdicion} />
+                        </Form.Group>
+                        <Form.Group className="mb-3">
+                            <Form.Label>Nombres Completos</Form.Label>
+                            <Form.Control type="text" name="nombres" value={pacienteActual.nombres} onChange={handleChange} />
+                        </Form.Group>
+                        <Form.Group className="mb-3">
+                            <Form.Label>Edad</Form.Label>
+                            <Form.Control type="number" name="edad" value={pacienteActual.edad} onChange={handleChange} />
+                        </Form.Group>
+                        <Form.Group className="mb-3">
+                            <Form.Label>Domicilio</Form.Label>
+                            <Form.Control type="text" name="domicilio" value={pacienteActual.domicilio} onChange={handleChange} />
+                        </Form.Group>
+                        <Form.Group className="mb-3">
+                            <Form.Label>Teléfono</Form.Label>
+                            <Form.Control type="text" name="telefono" value={pacienteActual.telefono} onChange={handleChange} />
+                        </Form.Group>
+                        <Form.Group className="mb-3">
+                            <Form.Label>Email</Form.Label>
+                            <Form.Control type="email" name="email" value={pacienteActual.email || ''} onChange={handleChange} />
+                        </Form.Group>
+                    </Form>
+                </Modal.Body>
+                <Modal.Footer>
+                    <Button variant="secondary" onClick={() => setMostrarModal(false)}>Cancelar</Button>
+                    <Button variant="primary" onClick={guardarPaciente}>{modoEdicion ? 'Actualizar' : 'Guardar'}</Button>
+                </Modal.Footer>
+            </Modal>
+        </Container>
+    );
+};
 
 export default ListaPacientes;

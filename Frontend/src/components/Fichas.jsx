@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { Form, Button, Row, Col, Card, Table, Container, Badge, Alert } from 'react-bootstrap'; 
-import { getPacienteById, getFichasByPaciente, createFicha } from '../services/api';
+import { getPacienteById, getFichasByPaciente, createFicha, deleteFicha } from '../services/api';
 
 function Fichas() {
   const { pacienteId } = useParams();
@@ -59,6 +59,21 @@ function Fichas() {
         const newList = list.includes(value) ? list.filter(i => i !== value) : [...list, value];
         return { ...prev, dolor: { ...prev.dolor, iniciado_por: newList } };
     });
+  };
+
+  // 👇 FUNCIÓN ELIMINAR FICHA
+  const handleEliminar = async (id) => {
+      if (window.confirm("¿Estás seguro de que quieres eliminar esta ficha? Esta acción no se puede deshacer.")) {
+          try {
+              await deleteFicha(id); // Llama a la API
+              // Eliminamos del estado visualmente para no recargar toda la página
+              setHistorial(historial.filter(ficha => ficha.id !== id));
+              alert("🗑️ Ficha eliminada.");
+          } catch (error) {
+              console.error(error);
+              alert("Error al eliminar.");
+          }
+      }
   };
 
   // 3. ENVÍO DE DATOS
@@ -190,7 +205,7 @@ function Fichas() {
                     </Card.Body>
                 </Card>
 
-                {/* SECCIÓN 4: EXAMEN FÍSICO Y RADIOGRÁFICO */}
+                {/* SECCIÓN 4, 5, 6 */}
                 <Row className="mb-4">
                     <Col md={6}>
                         <Card className="h-100 border-light bg-light">
@@ -274,8 +289,14 @@ function Fichas() {
                         historial.map(f => (
                         <Card key={f.id} className="mb-3 shadow-sm border-0">
                             <Card.Header className="bg-dark text-white d-flex justify-content-between align-items-center py-2">
-                                <span className="fw-bold">📅 {f.fecha}</span>
-                                <Badge bg="light" text="dark">ID: {f.id}</Badge>
+                                <div>
+                                    <span className="fw-bold">📅 {f.fecha}</span>
+                                    <Badge bg="light" text="dark" className="ms-2">ID: {f.id}</Badge>
+                                </div>
+                                {/* 👇 BOTÓN DE ELIMINAR AGREGADO */}
+                                <Button variant="danger" size="sm" onClick={() => handleEliminar(f.id)} title="Eliminar ficha">
+                                    🗑️
+                                </Button>
                             </Card.Header>
                             <Card.Body className="small bg-white">
                                 <div className="mb-2"><strong>Motivo:</strong> {f.motivo_consulta}</div>

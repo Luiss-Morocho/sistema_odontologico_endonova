@@ -51,3 +51,31 @@ def crear_ficha(ficha: FichaCreate, db: Session = Depends(get_db)):
 @app.get("/fichas/{paciente_id}", response_model=List[Ficha])
 def obtener_fichas(paciente_id: int, db: Session = Depends(get_db)):
     return db.query(models.Ficha).filter(models.Ficha.paciente_id == paciente_id).order_by(models.Ficha.fecha.desc()).all()
+
+# 3. UPDATE (Editar una ficha existente)
+@app.put("/fichas/{ficha_id}", response_model=Ficha)
+def actualizar_ficha(ficha_id: int, ficha_actualizada: FichaBase, db: Session = Depends(get_db)):
+    db_ficha = db.query(models.Ficha).filter(models.Ficha.id == ficha_id).first()
+    
+    if db_ficha is None:
+        raise HTTPException(status_code=404, detail="Ficha no encontrada")
+    
+    # Actualizamos todos los campos automáticamente
+    for key, value in ficha_actualizada.dict().items():
+        setattr(db_ficha, key, value)
+    
+    db.commit()
+    db.refresh(db_ficha)
+    return db_ficha
+
+# 4. DELETE (Borrar una ficha por error)
+@app.delete("/fichas/{ficha_id}")
+def eliminar_ficha(ficha_id: int, db: Session = Depends(get_db)):
+    db_ficha = db.query(models.Ficha).filter(models.Ficha.id == ficha_id).first()
+    
+    if db_ficha is None:
+        raise HTTPException(status_code=404, detail="Ficha no encontrada")
+    
+    db.delete(db_ficha)
+    db.commit()
+    return {"mensaje": "Ficha eliminada correctamente"}
