@@ -73,9 +73,10 @@ El proyecto se divide en 5 contenedores aislados que se comunican entre sí:
 ## 👤 Autores
 
 **Luis Morocho**
-...
-...
-...
+**Andrés Pérez**
+**Marck Hernández**
+**Jorge Bosquez**
+**Alexander Reyes**
 
 * Ingeniero de Software en formación.
 * [GitHub Profile](https://github.com/Luiss-Morocho)
